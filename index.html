@@ -89,6 +89,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .ex-link:hover{background:var(--primary-lt)}
 .ex-link svg{width:14px;height:14px;fill:var(--primary)}
 
+/* Auth / login */
+#login-screen{display:none;min-height:100vh;align-items:center;justify-content:center;padding:20px}
+#login-screen.show{display:flex}
+.login-card{background:var(--card);border-radius:16px;padding:32px;width:100%;max-width:380px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.login-card h1{font-size:22px;margin-bottom:4px}
+.login-card .sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.login-card input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);font-family:inherit}
+.login-card input:focus{outline:none;border-color:var(--primary)}
+.login-btn{width:100%;padding:10px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
+.login-btn:hover{opacity:.9}
+.login-btn:disabled{opacity:.5;cursor:default}
+.login-error{color:#dc2626;font-size:12px;margin-top:8px;display:none}
+.login-error.show{display:block}
+.login-toggle{font-size:12px;color:var(--muted);margin-top:14px;text-align:center}
+.login-toggle a{color:var(--primary);cursor:pointer;font-weight:500}
+.logout-btn{background:none;border:1px solid var(--border);font-size:12px;padding:4px 12px;border-radius:8px;cursor:pointer;color:var(--muted)}
+.logout-btn:hover{background:var(--card);color:var(--text)}
+
 @media(max-width:480px){
   .container{padding:16px 10px 80px}
   .day-name{font-size:24px}
@@ -108,8 +126,113 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <marker id="ahb" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M10,1 L1,5 L10,9" fill="#2d7a6f"/></marker>
 </defs>
 </svg>
-<div class="container" id="app"></div>
-<script>
+<!-- Login screen -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>Daily Mobility</h1>
+    <p class="sub">Login to track your routine</p>
+    <form id="login-form">
+      <div id="name-row" style="display:none">
+        <input type="text" id="auth-name" placeholder="Your name" />
+      </div>
+      <input type="email" id="auth-email" placeholder="Email" required />
+      <input type="password" id="auth-password" placeholder="Password" minlength="8" required />
+      <button type="submit" class="login-btn" id="login-btn">Login</button>
+      <p class="login-error" id="login-error"></p>
+    </form>
+    <p class="login-toggle" id="login-toggle">No account? <a id="toggle-mode">Sign up</a></p>
+  </div>
+</div>
+
+<!-- App (hidden until auth) -->
+<div class="container" id="app" style="display:none"></div>
+<script type="module">
+// ========== AUTH ==========
+import { Client, Account, ID } from 'appwrite';
+
+const client = new Client()
+  .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)
+  .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID);
+const authAccount = new Account(client);
+
+let authMode = 'login';
+const loginScreen = document.getElementById('login-screen');
+const appEl = document.getElementById('app');
+const loginForm = document.getElementById('login-form');
+const loginBtn = document.getElementById('login-btn');
+const loginError = document.getElementById('login-error');
+const nameRow = document.getElementById('name-row');
+const toggleMode = document.getElementById('toggle-mode');
+const loginToggle = document.getElementById('login-toggle');
+
+toggleMode.addEventListener('click', () => {
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  nameRow.style.display = authMode === 'signup' ? 'block' : 'none';
+  loginBtn.textContent = authMode === 'login' ? 'Login' : 'Create account';
+  loginToggle.innerHTML = authMode === 'login'
+    ? 'No account? <a id="toggle-mode">Sign up</a>'
+    : 'Have an account? <a id="toggle-mode">Login</a>';
+  document.getElementById('toggle-mode').addEventListener('click', toggleMode.click.bind(toggleMode));
+  loginError.classList.remove('show');
+});
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  loginError.classList.remove('show');
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'Loading...';
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  const name = document.getElementById('auth-name').value;
+  try {
+    if (authMode === 'signup') {
+      await authAccount.create(ID.unique(), email, password, name);
+    }
+    await authAccount.createEmailPasswordSession({ email, password });
+    showApp();
+  } catch (err) {
+    loginError.textContent = err.message;
+    loginError.classList.add('show');
+    loginBtn.disabled = false;
+    loginBtn.textContent = authMode === 'login' ? 'Login' : 'Create account';
+  }
+});
+
+function showLogin() {
+  loginScreen.classList.add('show');
+  appEl.style.display = 'none';
+}
+
+function showApp() {
+  loginScreen.classList.remove('show');
+  appEl.style.display = 'block';
+  render();
+  setTimeout(() => {
+    const st = getState();
+    const dow = selectedDate.getDay();
+    schedule[dow].forEach(bid => {
+      const bl = blocks[bid];
+      let allDone = true;
+      bl.exercises.forEach(eid => { if (!st[bid+'.'+eid]) allDone = false; });
+      if (allDone) collapsedBlocks.add(bid);
+    });
+    render();
+  }, 50);
+}
+
+async function doLogout() {
+  try { await authAccount.deleteSession('current'); } catch {}
+  showLogin();
+}
+
+// Check existing session on load
+try {
+  await authAccount.get();
+  showApp();
+} catch {
+  showLogin();
+}
+
 // ========== SVG HELPERS ==========
 // S = svg wrap, H = head, B = near body, F = far body, P/Q = path near/far
 // HL = highlight, G = ground, W = wall, A = arrow, E = equipment
@@ -1039,6 +1162,7 @@ function render() {
     </div>
     <button class="today-btn ${today?'hidden':''}" onclick="goToday()">Today</button>
     <div class="day-summary">${dayBlocks.length} blocks \u00B7 ~${mins} min total</div>
+    <button class="logout-btn" onclick="window._logout()">Logout</button>
   </div>`;
 
   html += `<div class="progress-wrap">
@@ -1172,20 +1296,13 @@ function goDate(key) {
   render();
 }
 
-// ========== INIT ==========
-render();
-
-setTimeout(() => {
-  const st = getState();
-  const dow = selectedDate.getDay();
-  schedule[dow].forEach(bid => {
-    const bl = blocks[bid];
-    let allDone = true;
-    bl.exercises.forEach(eid => { if (!st[bid+'.'+eid]) allDone = false; });
-    if (allDone) collapsedBlocks.add(bid);
-  });
-  render();
-}, 50);
+// ========== EXPOSE GLOBALS FOR INLINE HANDLERS ==========
+window.navDay = navDay;
+window.goToday = goToday;
+window.goDate = goDate;
+window.toggleBlock = toggleBlock;
+window.handleExClick = handleExClick;
+window._logout = doLogout;
 </script>
 </body>
 </html>
