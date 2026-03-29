@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Mobility</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f5f2ee;--card:#fff;--primary:#2d7a6f;--primary-lt:#e8f5f0;
+  --accent:#e8913a;--text:#2c2c2c;--muted:#8a8580;--border:#e8e4df;
+  --knee:#c0392b;--knee-bg:#fceae8;--elbow:#2d6fd1;--elbow-bg:#e4eefb;
+  --done:#27ae60;--done-bg:#e8f8ef;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh}
+.container{max-width:640px;margin:0 auto;padding:20px 16px 80px}
+.header{text-align:center;margin-bottom:20px}
+.date-label{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.day-name{font-size:28px;font-weight:700;margin:2px 0 4px}
+.day-summary{font-size:13px;color:var(--muted)}
+.nav{display:flex;align-items:center;justify-content:center;gap:12px;margin:8px 0}
+.nav-btn{background:none;border:1px solid var(--border);font-size:16px;cursor:pointer;color:var(--muted);padding:4px 12px;border-radius:8px;line-height:1}
+.nav-btn:hover{background:var(--card);color:var(--text)}
+.today-btn{font-size:12px;font-weight:600;color:var(--primary);background:var(--primary-lt);border:none;padding:4px 12px;border-radius:8px;cursor:pointer}
+.today-btn:hover{opacity:.85}
+.today-btn.hidden{display:none}
+.progress-wrap{margin:16px 0 8px}
+.progress-bar{background:var(--border);border-radius:100px;height:8px;overflow:hidden}
+.progress-fill{height:100%;background:var(--primary);border-radius:100px;transition:width .3s ease}
+.progress-text{font-size:12px;color:var(--muted);text-align:right;margin-top:4px}
+.week{display:flex;justify-content:center;gap:6px;margin:16px 0 20px}
+.wd{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px 8px;border-radius:10px;transition:background .15s}
+.wd:hover{background:var(--card)}
+.wd.active{background:var(--primary-lt)}
+.wd-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase}
+.wd-dot{width:10px;height:10px;border-radius:50%;background:var(--border)}
+.wd-dot.partial{background:var(--accent)}
+.wd-dot.complete{background:var(--done)}
+.wd-dot.today-ring{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--primary)}
+.block{background:var(--card);border-radius:16px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.block-hdr{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;transition:background .15s}
+.block-hdr:hover{background:#fafaf8}
+.block-left{display:flex;align-items:center;gap:10px}
+.block-icon{font-size:18px;width:28px;text-align:center}
+.block-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.block-when{font-size:11px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;margin-top:1px}
+.block-meta{display:flex;align-items:center;gap:10px}
+.block-time{font-size:12px;color:var(--muted)}
+.block-count{font-size:11px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:100px;font-weight:600}
+.block-count.complete{background:var(--done-bg);color:var(--done)}
+.block-chevron{color:var(--muted);font-size:14px;transition:transform .2s}
+.block-chevron.open{transform:rotate(180deg)}
+.block-prog{height:3px;background:var(--border)}
+.block-prog-fill{height:100%;background:var(--primary);transition:width .3s ease}
+.block-body{padding:4px 10px 10px;transition:max-height .3s ease}
+.block-body.collapsed{display:none}
+.ex{display:flex;align-items:center;padding:8px;border-radius:10px;transition:all .2s;cursor:pointer;gap:10px}
+.ex:hover{background:#fafaf8}
+.ex.done{opacity:.55}
+.ex-check{width:24px;height:24px;border:2px solid var(--border);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.ex.done .ex-check{background:var(--primary);border-color:var(--primary)}
+.checkmark{width:14px;height:14px;opacity:0;transition:opacity .2s}
+.ex.done .checkmark{opacity:1}
+.ex-diagram{width:72px;height:72px;flex-shrink:0;background:#fafaf8;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.ex-diagram svg{width:64px;height:64px}
+.ex-info{flex:1;min-width:0}
+.ex-name{font-size:14px;font-weight:500}
+.ex.done .ex-name{text-decoration:line-through;text-decoration-color:var(--muted)}
+.ex-detail{font-size:11px;color:var(--muted)}
+.ex-badges{display:flex;gap:4px;margin-top:2px}
+.badge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:.3px}
+.badge-knee{background:var(--knee-bg);color:var(--knee)}
+.badge-elbow{background:var(--elbow-bg);color:var(--elbow)}
+.ex-dur{font-size:11px;color:var(--muted);flex-shrink:0;white-space:nowrap}
+.done-msg{text-align:center;padding:32px 20px;background:var(--done-bg);border-radius:16px;margin-bottom:14px}
+.done-msg h2{color:var(--done);font-size:20px;margin-bottom:4px}
+.done-msg p{color:var(--muted);font-size:13px}
+.streak{text-align:center;font-size:12px;color:var(--muted);margin-bottom:16px}
+.streak b{color:var(--primary)}
+
+/* SVG diagram styles */
+.esvg line,.esvg path{stroke-linecap:round;stroke-linejoin:round}
+
+/* Expanded exercise description */
+.ex-cue{font-size:12px;color:var(--muted);padding:4px 12px 10px 106px;line-height:1.6;display:none}
+.ex-cue.show{display:block}
+.ex-desc{margin:0 0 8px;color:#555;white-space:pre-line}
+.ex-link{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--primary);text-decoration:none;padding:4px 10px;border:1.5px solid var(--primary);border-radius:6px;transition:all .15s}
+.ex-link:hover{background:var(--primary-lt)}
+.ex-link svg{width:14px;height:14px;fill:var(--primary)}
+
+@media(max-width:480px){
+  .container{padding:16px 10px 80px}
+  .day-name{font-size:24px}
+  .ex-diagram{width:64px;height:64px}
+  .ex-diagram svg{width:56px;height:56px}
+  .wd{padding:6px 5px}
+  .ex-cue{padding-left:98px}
+  .ex-desc{font-size:11px}
+}
+</style>
+</head>
+<body>
+<!-- Shared SVG defs for arrow markers -->
+<svg style="position:absolute;width:0;height:0;overflow:hidden">
+<defs>
+  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,1 L9,5 L0,9" fill="#2d7a6f"/></marker>
+  <marker id="ahb" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M10,1 L1,5 L10,9" fill="#2d7a6f"/></marker>
+</defs>
+</svg>
+<div class="container" id="app"></div>
+<script>
+// ========== SVG HELPERS ==========
+// S = svg wrap, H = head, B = near body, F = far body, P/Q = path near/far
+// HL = highlight, G = ground, W = wall, A = arrow, E = equipment
+const S = c => `<svg viewBox="0 0 100 100" class="esvg" xmlns="http://www.w3.org/2000/svg">${c}</svg>`;
+const H = (x,y) => `<circle cx="${x}" cy="${y}" r="7" fill="white" stroke="#444" stroke-width="2.5"/>`;
+const B = (x1,y1,x2,y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#444" stroke-width="6" stroke-linecap="round"/>`;
+const F = (x1,y1,x2,y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#aaa" stroke-width="4" stroke-linecap="round"/>`;
+const P = d => `<path d="${d}" stroke="#444" stroke-width="6" fill="none" stroke-linecap="round"/>`;
+const Q = d => `<path d="${d}" stroke="#aaa" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+const HL = (x,y,rx,ry,c) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry||rx}" fill="${c||'#e8913a'}" opacity="0.25"/>`;
+const G = (y=90) => `<line x1="3" y1="${y}" x2="97" y2="${y}" stroke="#ccc" stroke-width="1.5"/>`;
+const W = (x=92) => `<line x1="${x}" y1="3" x2="${x}" y2="97" stroke="#ccc" stroke-width="2" stroke-dasharray="6,4"/>`;
+const A = d => `<path d="${d}" stroke="#2d7a6f" stroke-width="2" fill="none" marker-end="url(#ah)"/>`;
+const AB = d => `<path d="${d}" stroke="#2d7a6f" stroke-width="2" fill="none" marker-start="url(#ahb)" marker-end="url(#ah)"/>`;
+const C = d => `<path d="${d}" stroke="#2d7a6f" stroke-width="1.5" fill="none" stroke-dasharray="4,3" opacity=".5"/>`;
+const E = (x,y,w,h,c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${c||'#ccc'}" opacity=".5"/>`;
+const D = (x,y,r,c) => `<circle cx="${x}" cy="${y}" r="${r||3}" fill="${c||'#666'}"/>`;
+
+// ========== EXERCISES ==========
+const exercises = {
+'cat-cow': {
+  name:'Cat-Cow', dur:'10 reps', time:60, target:'Spine',
+  cue:'On all fours, inhale and arch back (cow), exhale and round (cat). Move slowly with breath.',
+  svg: S(
+    G(82)+
+    HL(52,44,24,10)+
+    F(28,46,26,80)+F(72,44,74,80)+ // far limbs
+    P('M30 44 Q52 54 76 44')+ // spine (cow dip)
+    B(32,48,30,80)+B(76,46,78,80)+ // near limbs
+    H(20,36)+
+    AB('M52,32 L52,58') // up-down arrow
+  )
+},
+'thread-needle': {
+  name:'Thread the Needle', dur:'30s / side', time:60, target:'Upper back',
+  cue:'On all fours, reach one arm under your body, rotating your upper back. Look toward your reaching hand.',
+  svg: S(
+    G(82)+
+    HL(48,34,20,10)+
+    F(72,44,74,80)+ // far back leg
+    P('M30 42 Q52 46 76 42')+ // spine
+    B(76,44,78,80)+ // near back leg
+    B(32,46,30,80)+ // near front leg
+    P('M30 44 L64 56')+ // arm threading under
+    H(22,30)+
+    A('M18,22 A14,14 0 0,1 36,20') // rotation arc
+  )
+},
+'world-greatest-stretch': {
+  name:"World's Greatest Stretch", dur:'30s / side', time:60, target:'Hips, thoracic',
+  cue:'Deep lunge, place inside hand on ground, rotate and reach other arm to sky. Feel hip and upper back opening.',
+  svg: S(
+    G(82)+
+    HL(48,50,16)+
+    B(48,50,72,68)+B(72,68,84,80)+ // back leg extended
+    B(48,50,32,64)+B(32,64,26,80)+ // front leg bent
+    B(48,50,46,28)+ // torso
+    B(46,28,54,6)+ // arm reaching UP
+    F(46,28,28,58)+ // arm to ground
+    H(44,18)
+  )
+},
+'hip-90-90': {
+  name:'Hip 90/90 Switches', dur:'10 each way', time:120, target:'Hips',
+  cue:'Seated, both legs at 90 degrees. Rotate knees side to side keeping feet on floor. Go slowly through full range.',
+  svg: S(
+    G(80)+
+    HL(50,58,22,12)+
+    B(50,54,50,30)+ // torso
+    F(50,34,38,44)+F(50,34,62,44)+ // arms resting
+    H(50,20)+
+    B(50,54,30,62)+B(30,62,18,76)+ // left leg (thigh left, shin down)
+    B(50,54,70,62)+B(70,62,86,62)+ // right leg (thigh right, shin right)
+    A('M22,74 Q50,86 84,64') // rotation sweep
+  )
+},
+'deep-squat': {
+  name:'Deep Squat Hold', dur:'90s', time:90, target:'Hips, ankles',
+  cue:'Sink into the deepest squat you can. Heels down, chest up, elbows pushing knees out.',
+  svg: S(
+    G(82)+
+    HL(50,52,18,14)+
+    B(50,52,50,30)+ // torso
+    F(50,34,34,34)+F(50,34,66,34)+ // arms forward
+    H(50,20)+
+    B(50,52,34,64)+B(34,64,30,80)+ // left leg
+    B(50,52,66,64)+B(66,64,70,80) // right leg
+  )
+},
+'hip-cars': {
+  name:'Standing Hip CARs', dur:'5 each way / side', time:120, target:'Hips',
+  cue:'Standing on one leg, lift knee up, rotate out, extend back, return. Biggest circle possible, controlled.',
+  svg: S(
+    G(90)+
+    HL(40,54,16)+
+    B(50,52,50,30)+ // torso
+    F(50,34,40,44)+F(50,34,60,44)+ // arms
+    H(50,20)+
+    B(50,52,52,72)+B(52,72,54,88)+ // standing leg
+    B(50,52,34,58)+ // lifted thigh
+    F(34,58,26,72)+ // lifted shin
+    C('M24,68 A22,22 0 1,1 42,46')+ // dashed circle path
+    A('M42,46 L46,42') // direction arrow
+  )
+},
+'neck-cars': {
+  name:'Neck CARs', dur:'3 each direction', time:120, target:'Neck',
+  cue:'Slowly draw the biggest circle with your nose. Chin to chest, ear to shoulder, look up, other ear. Very slow.',
+  svg: S(
+    HL(50,38,20)+
+    B(50,52,50,68)+ // torso
+    B(50,56,32,56)+B(50,56,68,56)+ // shoulders
+    F(32,56,26,72)+F(68,56,74,72)+ // arms
+    H(50,38)+
+    C('M30,28 A24,24 0 1,1 32,32')+ // dashed circle
+    A('M32,32 L36,36') // direction
+  )
+},
+'knee-cars': {
+  name:'Knee CARs', dur:'5 each way / side', time:120, target:'Knees', injury:'knee',
+  cue:'Standing, lift foot off ground and make slow circles with lower leg. Keep thigh still, move only at the knee.',
+  svg: S(
+    G(90)+
+    HL(36,72,14,0,'#c0392b')+
+    B(50,52,50,30)+ // torso
+    F(50,34,42,44)+F(50,34,58,44)+ // arms
+    H(50,20)+
+    B(50,52,54,72)+B(54,72,56,88)+ // standing leg
+    B(50,52,36,64)+ // lifted thigh
+    F(36,64,28,78)+ // shin
+    C('M24,74 A12,12 0 1,1 32,60')+ // circle
+    A('M32,60 L36,56') // direction
+  )
+},
+'wrist-elbow-cars': {
+  name:'Wrist & Elbow CARs', dur:'5 each way / side', time:90, target:'Wrist, elbow', injury:'elbow',
+  cue:'Arm extended, slowly rotate wrist through full range. Then bend/extend elbow with rotation. Focus on right side.',
+  svg: S(
+    HL(48,50,14,0,'#2d6fd1')+HL(80,50,12,0,'#2d6fd1')+
+    B(10,50,88,50)+ // arm horizontal
+    D(48,50,5,'#555')+D(80,50,4,'#555')+ // elbow + wrist joints
+    C('M38,34 A16,16 0 1,1 40,36')+ // elbow circle
+    A('M40,36 L44,40')+
+    C('M72,36 A12,12 0 1,1 74,38')+ // wrist circle
+    A('M74,38 L78,42')
+  )
+},
+'shoulder-cars': {
+  name:'Shoulder CARs', dur:'3 each way / side', time:60, target:'Shoulders',
+  cue:'Standing, draw the biggest circle with your arm. Keep your body completely still. Move only at the shoulder.',
+  svg: S(
+    G(90)+
+    HL(50,36,18)+
+    B(50,52,50,32)+ // torso
+    H(50,22)+
+    B(50,52,48,72)+B(48,72,46,88)+ // left leg
+    F(50,52,52,72)+F(52,72,54,88)+ // right leg
+    F(50,36,64,50)+ // arm hanging
+    B(50,36,34,18)+ // arm position (up-left)
+    C('M34,18 A28,28 0 1,0 38,22')+ // large dashed circle
+    A('M38,22 L42,26')
+  )
+},
+'couch-stretch': {
+  name:'Couch Stretch', dur:'90s / side', time:180, target:'Hip flexors',
+  cue:'Rear foot on wall/couch behind you, front foot forward in lunge. Squeeze glute of back leg and push hips forward.',
+  svg: S(
+    G(80)+W(86)+
+    HL(56,48,16)+
+    B(48,48,46,26)+ // torso
+    H(46,16)+
+    F(46,30,38,40)+F(46,30,54,40)+ // arms
+    B(48,48,32,62)+B(32,62,26,78)+ // front leg
+    B(48,48,64,58)+P('M64 58 Q76 50 84 38') // back leg curving to wall
+  )
+},
+'pigeon': {
+  name:'Pigeon Stretch', dur:'90s / side', time:180, target:'Hips, glutes',
+  cue:'Front shin roughly parallel to your body. Back leg extended straight behind. Fold forward over front leg for deeper stretch.',
+  svg: S(
+    G(78)+
+    HL(40,56,18,10)+
+    P('M40 50 L34 30')+ // torso leaning forward
+    F(34,34,24,44)+F(34,34,40,44)+ // arms
+    H(30,22)+
+    B(42,52,24,62)+B(24,62,14,70)+ // front leg on ground
+    B(42,52,72,62)+B(72,62,90,68) // back leg extended
+  )
+},
+'deep-squat-shift': {
+  name:'Deep Squat + Lateral Shift', dur:'2 min', time:120, target:'Hips, adductors',
+  cue:'In deep squat, shift weight side to side. Spend time in each side, feeling inner thigh and hip stretch.',
+  svg: S(
+    G(82)+
+    HL(36,54,16)+
+    B(40,52,38,28)+ // torso leaning
+    F(38,32,28,32)+F(38,32,48,32)+ // arms
+    H(38,18)+
+    B(40,52,24,64)+B(24,64,20,80)+ // left (deep) leg
+    B(40,52,62,60)+B(62,60,72,80)+ // right (shallower) leg
+    A('M52,52 L66,52') // shift arrow
+  )
+},
+'90-90-lean': {
+  name:'90/90 with Forward Lean', dur:'60s / side', time:120, target:'Hips',
+  cue:'In 90/90 position, hinge forward at hips over front leg. Keep spine long. You should feel a deep hip stretch.',
+  svg: S(
+    G(80)+
+    HL(42,48,16)+
+    P('M48 52 Q42 42 32 30')+ // torso leaning forward
+    F(34,34,24,40)+F(34,34,40,28)+ // arms
+    H(28,22)+
+    B(48,52,28,62)+B(28,62,16,76)+ // left leg
+    B(48,52,68,58)+B(68,58,84,58) // right leg
+  )
+},
+'terminal-knee-ext': {
+  name:'Terminal Knee Extensions', dur:'2 x 15', time:180, target:'Knee (VMO)', injury:'knee',
+  cue:'Band behind left knee, step back for tension. From slightly bent, fully straighten knee. Squeeze at top. Focus on left knee.',
+  svg: S(
+    G(90)+
+    HL(48,70,14,0,'#c0392b')+
+    B(50,52,50,30)+ // torso
+    F(50,34,40,44)+F(50,34,60,44)+ // arms
+    H(50,20)+
+    B(50,52,54,72)+B(54,72,56,88)+ // right (standing) leg
+    B(50,52,42,68)+ // left thigh
+    F(42,68,38,82)+ // left shin (slightly bent)
+    `<path d="M16,68 Q42,60 42,68" stroke="#999" stroke-width="2.5" fill="none" stroke-dasharray="4,3"/>`+ // band
+    A('M40,80 L40,68') // extension arrow
+  )
+},
+'vmo-wall-sit': {
+  name:'VMO Wall Sit', dur:'3 x 30s', time:150, target:'Inner quad, knee', injury:'knee',
+  cue:'Back flat against wall, slide down to ~70 degree knee angle. Squeeze a ball between knees. Focus on inner quad above left knee.',
+  svg: S(
+    G(86)+W(80)+
+    HL(50,66,14,0,'#c0392b')+
+    B(74,50,74,28)+ // torso against wall
+    H(74,18)+
+    F(74,32,66,42)+ // arm
+    B(74,50,54,64)+B(54,64,52,84)+ // near leg
+    F(74,50,58,64)+F(58,64,56,84)+ // far leg
+    D(55,62,5,'#bbb') // ball between knees
+  )
+},
+'ankle-dorsiflexion': {
+  name:'Ankle Dorsiflexion Stretch', dur:'60s / side', time:120, target:'Ankles',
+  cue:'Face wall, one foot a few inches from wall. Drive knee forward over toes to touch wall. Keep heel down.',
+  svg: S(
+    G(86)+W(74)+
+    HL(52,78,14)+
+    B(50,50,50,28)+ // torso
+    H(50,18)+
+    F(50,32,42,42)+ // arm
+    B(50,50,60,68)+B(60,68,52,84)+ // front leg (knee forward)
+    F(50,50,40,68)+F(40,68,36,84)+ // back leg
+    A('M62,64 L70,56') // knee forward arrow
+  )
+},
+'hamstring-stretch': {
+  name:'Lying Hamstring Stretch', dur:'60s / side', time:120, target:'Hamstrings',
+  cue:'On your back, one leg up. Use a strap or hands behind thigh. Keep leg as straight as possible. Relax into it.',
+  svg: S(
+    `<line x1="3" y1="82" x2="97" y2="82" stroke="#ccc" stroke-width="1.5"/>`+
+    HL(62,38,16)+
+    H(12,72)+
+    B(20,72,66,72)+ // torso on ground
+    B(66,72,84,76)+F(84,76,94,80)+ // lower leg on ground
+    B(66,72,62,22)+ // raised leg going up
+    F(38,68,58,38)+F(44,70,60,44)+ // arms holding leg
+    `<path d="M56,38 L62,22 L66,38" stroke="#999" stroke-width="2" fill="none" stroke-dasharray="3,2"/>` // strap
+  )
+},
+'thoracic-ext-roller': {
+  name:'Thoracic Extension on Roller', dur:'2 min', time:120, target:'Upper back',
+  cue:'Foam roller under upper back. Hands behind head, elbows in. Slowly extend over the roller. Pause at tight spots.',
+  svg: S(
+    G(80)+
+    HL(48,52,18)+
+    `<ellipse cx="50" cy="70" rx="10" ry="8" fill="#ddd" stroke="#aaa" stroke-width="2.5"/>`+ // foam roller
+    P('M26 56 Q50 48 62 68')+ // upper back arching over roller
+    B(62,70,82,76)+F(82,76,94,78)+ // lower body flat
+    H(18,52)+
+    Q('M28 52 Q20 42 16 50') // arms behind head
+  )
+},
+'open-book': {
+  name:'Open Book Stretch', dur:'60s / side', time:120, target:'Thoracic spine',
+  cue:'Side lying, knees stacked and bent. Top arm opens to the other side, rotating upper back. Follow your hand with eyes.',
+  svg: S(
+    `<line x1="3" y1="82" x2="97" y2="82" stroke="#ccc" stroke-width="1.5"/>`+
+    HL(46,42,18)+
+    H(18,68)+
+    B(26,68,58,68)+ // torso on ground
+    B(58,68,70,58)+B(70,58,78,70)+ // bent legs
+    F(58,68,68,62)+F(68,62,74,72)+ // far leg
+    F(30,66,20,56)+ // bottom arm forward
+    B(38,66,46,26)+ // top arm opening up
+    A('M22,54 A28,28 0 0,1 48,24') // rotation arc
+  )
+},
+'wall-slides': {
+  name:'Wall Slides', dur:'3 x 8', time:150, target:'Shoulders, upper back',
+  cue:'Back and arms against wall. Start with arms in W position, slide up to Y. Keep everything touching the wall.',
+  svg: S(
+    G(90)+W(80)+
+    HL(72,28,18)+
+    B(74,52,74,30)+ // torso against wall
+    H(74,20)+
+    B(74,30,62,16)+F(62,16,54,4)+ // left arm going up
+    F(74,30,68,16)+Q('M68 16 L62 4')+ // right arm going up
+    B(74,52,64,72)+B(64,72,62,88)+ // leg
+    A('M52,8 L46,2')+A('M60,8 L54,2') // upward arrows
+  )
+},
+'shoulder-dislocates': {
+  name:'Shoulder Dislocates', dur:'2 x 12', time:120, target:'Shoulders',
+  cue:'Hold band/stick wide. Keep arms straight, bring them up and over your head and behind your back. Go slow.',
+  svg: S(
+    G(90)+
+    HL(50,24,20)+
+    B(50,52,50,34)+ // torso
+    H(50,24)+
+    B(50,52,48,72)+B(48,72,46,88)+ // left leg
+    F(50,52,52,72)+F(52,72,54,88)+ // right leg
+    P('M18,42 Q50,2 82,42')+ // arms arcing overhead
+    `<path d="M18,42 Q50,2 82,42" stroke="#999" stroke-width="2" fill="none" stroke-dasharray="4,3"/>`+ // band
+    A('M22,38 Q14,18 50,4') // motion arrow
+  )
+},
+'wrist-flexor-stretch': {
+  name:'Wrist Flexor Stretch', dur:'45s / side', time:90, target:'Inner forearm', injury:'elbow',
+  cue:'Extend right arm, palm up. With other hand, pull fingers down and back. Feel stretch on inside of forearm.',
+  svg: S(
+    HL(48,50,20,10,'#2d6fd1')+
+    B(8,50,66,50)+ // straight arm
+    P('M66 50 Q72 50 76 38')+ // wrist bending back
+    B(76,38,80,28)+ // fingers up
+    D(66,50,4,'#555')+ // wrist joint
+    F(60,48,76,34)+F(56,46,72,30)+ // other hand pulling
+    A('M78,32 L82,22') // pull direction
+  )
+},
+'wrist-extensor-stretch': {
+  name:'Wrist Extensor Stretch', dur:'45s / side', time:90, target:'Outer forearm', injury:'elbow',
+  cue:'Extend right arm, palm down. With other hand, push top of hand down. Feel stretch on outside of forearm.',
+  svg: S(
+    HL(48,48,20,10,'#2d6fd1')+
+    B(8,48,66,48)+ // straight arm
+    P('M66 48 Q72 48 76 60')+ // wrist bending down
+    B(76,60,80,70)+ // fingers down
+    D(66,48,4,'#555')+ // wrist joint
+    F(60,50,76,64)+F(56,52,72,68)+ // other hand pushing
+    A('M78,66 L82,76') // push direction
+  )
+},
+'eccentric-wrist-curls': {
+  name:'Eccentric Wrist Curls', dur:'3 x 12', time:180, target:'Forearm, elbow', injury:'elbow',
+  cue:'Right forearm on thigh, wrist over edge. Light weight, slowly lower (3s down). Use other hand to help back up.',
+  svg: S(
+    HL(62,40,16,0,'#2d6fd1')+
+    E(8,54,56,10)+ // surface (thigh/table)
+    B(14,50,64,50)+ // forearm on surface
+    P('M64 50 L68 62')+ // wrist dropping
+    D(64,50,4,'#555')+ // wrist joint
+    E(62,62,14,10,'#999')+ // dumbbell
+    A('M70,58 L72,70') // downward arrow
+  )
+},
+'pec-stretch': {
+  name:'Pec Doorway Stretch', dur:'60s / side', time:120, target:'Chest',
+  cue:'Forearm on doorframe at 90 degrees. Step through with the same-side foot until you feel a chest stretch. Hold.',
+  svg: S(
+    G(88)+W(66)+
+    HL(36,36,18)+
+    B(52,52,52,30)+ // torso
+    H(52,20)+
+    B(52,30,66,30)+B(66,30,66,14)+ // arm on doorframe (elbow 90)
+    F(52,30,42,42)+ // other arm
+    B(52,52,42,70)+B(42,70,38,86)+ // front leg (stepping through)
+    F(52,52,58,70)+F(58,70,60,86) // back leg
+  )
+},
+'neck-side-stretch': {
+  name:'Neck Side Stretch', dur:'45s / side', time:90, target:'Neck, upper trap',
+  cue:'Tilt head to one side, gently press with hand. Depress opposite shoulder actively. Hold at comfortable stretch.',
+  svg: S(
+    HL(38,34,16)+
+    B(50,58,50,46)+ // upper torso
+    B(50,52,34,52)+B(50,52,66,52)+ // shoulders
+    F(66,52,72,68)+ // right arm down
+    B(34,52,34,42)+B(34,42,42,32)+ // left arm going up to head
+    P('M50 46 Q44 38 40 34')+ // neck tilting
+    H(38,28)+
+    A('M34,24 L28,16') // tilt direction
+  )
+},
+'upper-trap-release': {
+  name:'Upper Trap Release', dur:'60s / side', time:120, target:'Upper traps',
+  cue:'Tennis/lacrosse ball between upper trap and wall. Lean into it and slowly roll around tight spots. Breathe.',
+  svg: S(
+    G(88)+W(76)+
+    HL(66,34,14)+
+    B(68,52,68,30)+ // torso leaning against wall
+    H(68,20)+
+    F(68,34,58,44)+F(68,34,72,44)+ // arms
+    B(68,52,60,70)+B(60,70,58,86)+ // legs
+    `<circle cx="72" cy="34" r="5" fill="none" stroke="#999" stroke-width="2.5"/>` // ball
+  )
+},
+'standing-hip-flexor': {
+  name:'Standing Hip Flexor Stretch', dur:'30s / side', time:60, target:'Hip flexors',
+  cue:'Tall lunge stance. Tuck pelvis under, squeeze back glute. Raise same arm overhead for extra stretch.',
+  svg: S(
+    G(82)+
+    HL(50,50,14)+
+    B(50,50,48,26)+ // torso
+    H(48,16)+
+    B(48,26,54,6)+ // arm up
+    F(48,26,40,38)+ // other arm
+    B(50,50,36,64)+B(36,64,30,80)+ // front leg
+    B(50,50,66,66)+B(66,66,76,80) // back leg
+  )
+},
+'seated-figure-4': {
+  name:'Seated Figure-4', dur:'30s / side', time:60, target:'Hips, glutes',
+  cue:'Seated, cross one ankle over opposite knee. Sit tall and lean forward gently. Feel stretch in glute of crossed leg.',
+  svg: S(
+    HL(54,58,14)+
+    E(26,64,48,6)+ // chair seat
+    `<line x1="26" y1="64" x2="26" y2="84" stroke="#bbb" stroke-width="2.5"/>`+
+    `<line x1="74" y1="64" x2="74" y2="84" stroke="#bbb" stroke-width="2.5"/>`+
+    B(50,60,50,34)+ // torso
+    H(50,24)+
+    F(50,38,40,48)+F(50,38,60,48)+ // arms
+    B(50,60,40,70)+B(40,70,36,84)+ // normal leg
+    B(50,60,60,60)+P('M60 60 Q70 54 66 48')+ // crossed leg (figure 4)
+    F(66,48,60,42) // foot up
+  )
+},
+'seated-thoracic-rotation': {
+  name:'Seated Thoracic Rotation', dur:'30s / side', time:60, target:'Upper back',
+  cue:'Seated, cross arms on chest. Rotate upper body to one side, keeping hips square. Move from the mid-back.',
+  svg: S(
+    HL(44,38,16)+
+    E(28,64,42,6)+ // chair seat
+    `<line x1="28" y1="64" x2="28" y2="82" stroke="#bbb" stroke-width="2.5"/>`+
+    `<line x1="70" y1="64" x2="70" y2="82" stroke="#bbb" stroke-width="2.5"/>`+
+    P('M50 60 Q46 48 40 34')+ // torso twisted
+    H(38,24)+
+    F(42,40,34,46)+F(42,40,50,46)+ // arms crossed
+    B(50,60,42,72)+B(42,72,38,82)+
+    F(50,60,58,72)+F(58,72,62,82)+
+    A('M54,28 A14,14 0 0,0 36,26') // rotation arrow
+  )
+},
+'chin-tucks': {
+  name:'Chin Tucks', dur:'10 reps', time:60, target:'Neck, posture',
+  cue:'Draw chin straight back, making a double chin. Hold 5s. Imagine a string pulling the back of your head up and back.',
+  svg: S(
+    HL(48,38,16)+
+    B(50,56,50,46)+ // neck
+    B(50,58,50,74)+ // torso
+    B(50,54,36,54)+B(50,54,64,54)+ // shoulders
+    F(36,54,30,68)+F(64,54,70,68)+ // arms
+    H(46,34)+ // actual position
+    `<circle cx="56" cy="32" r="7" fill="none" stroke="#ccc" stroke-width="2" stroke-dasharray="3,3"/>`+ // ghost forward head
+    A('M54,34 L46,34') // retraction arrow
+  )
+},
+'standing-quad-stretch': {
+  name:'Standing Quad Stretch', dur:'30s / side', time:60, target:'Quads, knee', injury:'knee',
+  cue:'Standing, grab one foot behind you. Keep knees together, tuck pelvis. Be gentle with the left knee.',
+  svg: S(
+    G(90)+
+    HL(58,64,14,0,'#c0392b')+
+    B(50,52,50,30)+ // torso
+    H(50,20)+
+    F(50,34,42,44)+ // free arm
+    B(50,52,48,72)+B(48,72,46,88)+ // standing leg
+    B(50,52,58,62)+P('M58 62 L60 48')+ // thigh and shin bending back
+    B(50,34,62,44)+F(62,44,60,50) // arm reaching back to grab foot
+  )
+},
+'shoulder-rolls': {
+  name:'Shoulder Shrugs & Rolls', dur:'1 min', time:60, target:'Shoulders, traps',
+  cue:'Roll shoulders forward, up, back, and down in big circles. Reverse direction halfway through.',
+  svg: S(
+    G(90)+
+    HL(36,32,12)+HL(64,32,12)+
+    B(50,52,50,32)+ // torso
+    H(50,22)+
+    B(50,36,36,36)+B(50,36,64,36)+ // shoulders
+    B(36,36,32,52)+F(64,36,68,52)+ // arms
+    B(50,52,46,72)+B(46,72,44,88)+
+    F(50,52,54,72)+F(54,72,56,88)+
+    C('M32,28 A10,10 0 1,1 34,30')+A('M34,30 L38,34')+ // left circle
+    C('M68,28 A10,10 0 1,0 66,30')+A('M66,30 L62,34') // right circle
+  )
+},
+'band-pull-aparts': {
+  name:'Band Pull-Aparts', dur:'15 reps', time:30, target:'Upper back, rear delts',
+  cue:'Hold band at chest height, arms straight. Pull apart by squeezing shoulder blades together. Control the return.',
+  svg: S(
+    G(90)+
+    HL(50,32,18)+
+    B(50,52,50,34)+ // torso
+    H(50,24)+
+    B(50,38,32,38)+B(32,38,14,38)+ // left arm out
+    F(50,38,68,38)+F(68,38,86,38)+ // right arm out
+    `<line x1="16" y1="38" x2="84" y2="38" stroke="#999" stroke-width="2.5" stroke-dasharray="4,3"/>`+ // band
+    B(50,52,46,72)+B(46,72,44,88)+
+    F(50,52,54,72)+F(54,72,56,88)+
+    A('M18,32 L8,32')+A('M82,32 L92,32') // pull arrows
+  )
+},
+'leg-swings': {
+  name:'Leg Swings', dur:'10 each way / side', time:60, target:'Hips',
+  cue:'Hold something for balance. Swing one leg forward and back (10x), then side to side (10x). Stay controlled.',
+  svg: S(
+    G(90)+
+    HL(44,54,16)+
+    B(50,52,50,30)+ // torso
+    H(50,20)+
+    F(50,34,60,44)+ // arm holding support
+    `<line x1="68" y1="10" x2="68" y2="54" stroke="#bbb" stroke-width="2.5"/>`+ // pole
+    B(50,52,54,72)+B(54,72,56,88)+ // standing leg
+    F(50,52,34,68)+F(34,68,24,82)+ // swing position forward
+    Q('M50 52 Q60 68 66 82')+ // ghost swing back
+    A('M26,78 Q30,56 36,42')+ // forward arc
+    A('M64,78 Q60,60 54,52') // backward arc
+  )
+},
+'arm-circles': {
+  name:'Arm Circles + Wrist Circles', dur:'30s each way', time:30, target:'Shoulders, wrists',
+  cue:'Big arm circles forward then backward. Then circle your wrists in each direction.',
+  svg: S(
+    G(90)+
+    HL(34,30,12)+HL(66,30,12)+
+    B(50,52,50,34)+ // torso
+    H(50,24)+
+    B(50,38,34,22)+F(50,38,66,22)+ // arms extended up-outward
+    B(50,52,46,72)+B(46,72,44,88)+
+    F(50,52,54,72)+F(54,72,56,88)+
+    C('M30,18 A18,20 0 1,1 28,22')+ // left dashed circle
+    C('M70,18 A18,20 0 1,0 72,22') // right dashed circle
+  )
+},
+'bw-squats': {
+  name:'Bodyweight Squats', dur:'10 reps', time:30, target:'Legs',
+  cue:'Controlled squats to parallel or below. Arms forward for balance. Focus on smooth, full range of motion.',
+  svg: S(
+    G(80)+
+    HL(50,50,18,14)+
+    B(50,50,50,28)+ // torso
+    H(50,18)+
+    B(50,32,34,32)+F(34,32,20,32)+ // arms forward
+    F(50,32,66,32)+Q('M66 32 L80 32')+ // arms
+    B(50,50,36,62)+B(36,62,30,78)+ // left leg
+    B(50,50,64,62)+B(64,62,70,78) // right leg
+  )
+},
+'seated-forward-fold': {
+  name:'Seated Forward Fold', dur:'45s / side', time:90, target:'Hamstrings, back',
+  cue:'Seated, legs extended. Hinge forward at hips reaching for toes. Keep back as flat as possible.',
+  svg: S(
+    `<line x1="3" y1="72" x2="97" y2="72" stroke="#ccc" stroke-width="1.5"/>`+
+    HL(52,48,18,10)+
+    B(38,68,86,68)+ // legs on ground
+    P('M38 68 Q36 56 30 46')+ // torso folding forward
+    H(26,38)+
+    F(32,48,62,54)+F(34,50,66,58) // arms reaching to feet
+  )
+}
+};
+
+// ========== DESCRIPTIONS ==========
+const desc = {
+'cat-cow': `Start on hands and knees, wrists under shoulders, knees under hips.
+\u2022 Inhale: drop belly toward the floor, lift chest and tailbone (cow)
+\u2022 Exhale: round spine toward ceiling, tuck chin and tailbone under (cat)
+Move slowly \u2014 one full breath per cycle. Focus on articulating each segment of your spine sequentially.`,
+
+'thread-needle': `Start on all fours. Slide your right arm under your left arm, palm facing up, letting your right shoulder and temple rest on the floor.
+Feel the rotation through your upper back. Hold for 30s, breathing deeply into the stretch.
+Return to start and repeat on the other side.`,
+
+'world-greatest-stretch': `Step into a deep lunge, right foot forward. Place your left hand flat on the floor inside your right foot.
+\u2022 Rotate your chest open to the right, reaching your right arm to the ceiling
+\u2022 Follow your hand with your eyes
+\u2022 Hold 30s per side
+Feel the stretch through your hip flexor, groin, and thoracic spine simultaneously.`,
+
+'hip-90-90': `Sit on the floor with both legs bent at 90\u00b0 \u2014 front shin parallel to your shoulders, back shin perpendicular.
+Sit up tall. To switch: lift both knees and rotate them to the other side so front leg becomes back leg.
+Move slowly through 10 switches each direction, pausing briefly at end range each time.`,
+
+'deep-squat': `Stand with feet slightly wider than shoulder-width, toes turned out 15\u201330\u00b0.
+Squat down as low as possible, keeping heels flat and chest up. Use your elbows to gently push your knees out.
+Breathe deeply and relax into the bottom position. Hold for 90 seconds. Rock side to side gently if helpful.`,
+
+'hip-cars': `Stand tall on one leg (hold something for balance if needed).
+\u2022 Lift your knee up toward your chest
+\u2022 Rotate it out to the side
+\u2022 Extend the leg behind you
+\u2022 Bring it back to the start
+Trace the biggest circle possible. Keep your torso completely still \u2014 all movement from the hip joint. 5 circles each direction, each side.`,
+
+'neck-cars': `Stand tall with shoulders relaxed. Drop your chin to your chest, then slowly:
+\u2022 Roll right ear toward right shoulder
+\u2022 Look up to the ceiling
+\u2022 Left ear to left shoulder
+\u2022 Back to chin on chest
+Make the biggest, smoothest circle you can. Each circle should take 15\u201320 seconds. 3 in each direction.`,
+
+'knee-cars': `Stand on your right leg (hold something for balance). Lift your left foot with knee bent.
+Keeping your thigh still, make slow circles with your lower leg \u2014 flexing and extending at the knee with slight rotation.
+Focus on smooth, controlled movement through the full range. 5 circles each direction per side. Be gentle with your left knee.`,
+
+'wrist-elbow-cars': `Extend your right arm in front of you.
+\u2022 Wrist CARs: slowly circle your wrist through full range \u2014 flexion, extension, radial and ulnar deviation
+\u2022 Elbow CARs: keeping upper arm still, flex and extend elbow while adding forearm rotation (pronation/supination)
+5 circles each direction for both joints. Give extra attention to the right side.`,
+
+'shoulder-cars': `Stand tall with one arm at your side. Slowly raise your arm forward and up overhead, then rotate it behind you and back down \u2014 tracing the biggest possible circle.
+Keep your torso completely still; only your arm moves. Move very slowly (10\u201315 seconds per circle). 3 each direction per side.`,
+
+'couch-stretch': `Kneel with your back foot against a wall (shoelaces facing wall). Step your front foot forward into a lunge.
+\u2022 Keep torso upright
+\u2022 Squeeze the glute of your back leg hard
+\u2022 Tuck your pelvis under (posterior tilt)
+You should feel an intense stretch in your hip flexor. Don't arch your lower back. Hold 90s per side.`,
+
+'pigeon': `From all fours, bring your right knee forward behind your right wrist. Angle your right shin as close to parallel with your hips as flexibility allows.
+Extend your left leg straight behind you. Square your hips to the floor.
+For deeper stretch, walk your hands forward and fold over your front leg. Hold 90s per side.`,
+
+'deep-squat-shift': `Get into a deep squat. Shift your weight to the left, letting your left hip sink deeper while your right leg straightens slightly.
+Hold 15\u201320 seconds on each side. Feel the stretch in your inner thigh and hip of the deeper side. Keep alternating for 2 minutes total.`,
+
+'90-90-lean': `Sit in the 90/90 position (both legs at 90\u00b0). Keeping your spine long and chest proud, hinge forward at the hips over your front leg.
+Walk your hands forward on the floor. You should feel a deep stretch in the front-leg hip and glute.
+Keep both sit bones grounded. Hold 60s per side.`,
+
+'terminal-knee-ext': `Loop a resistance band around a sturdy anchor at knee height. Step in so it sits behind your left knee. Step back to create tension.
+\u2022 Standing on right leg, start with left knee slightly bent (~20\u00b0)
+\u2022 Slowly straighten left knee fully, squeezing hard at the top for 2s
+\u2022 Focus on the VMO (inner quad muscle just above kneecap)
+2 sets of 15 reps. Key exercise for left knee rehab.`,
+
+'vmo-wall-sit': `Stand with your back flat against a wall. Slide down until knees are bent to about 70\u00b0 (not full 90\u00b0).
+Place a small ball or rolled towel between your knees and squeeze it throughout.
+Hold 30s, focusing on the inner quad muscle above your left kneecap. 3 sets with 15s rest between.`,
+
+'ankle-dorsiflexion': `Face a wall in a split stance, front foot a few inches from the wall.
+Keeping your front heel on the ground, drive your knee forward toward the wall, trying to touch it.
+If easy, move your foot further back. Feel the stretch in the front of your ankle and calf. Hold 60s per side.`,
+
+'hamstring-stretch': `Lie on your back. Raise one leg straight up, keeping the other flat on the ground.
+Loop a strap or towel around the raised foot, or hold behind your thigh with both hands. Gently pull the leg toward you while keeping it as straight as possible.
+Relax your shoulders and breathe. Hold 60s per side.`,
+
+'thoracic-ext-roller': `Place a foam roller on the ground and lie back so it's under your upper back (around bra-line level).
+\u2022 Support your head with hands behind it
+\u2022 Let your upper back extend over the roller, opening your chest toward the ceiling
+\u2022 Hold 15\u201320 seconds, then shift the roller up or down to a new spot
+Work up and down the upper back for 2 minutes. Don't roll the lower back.`,
+
+'open-book': `Lie on your side with knees bent and stacked, arms extended in front of you, palms together.
+Keeping your knees together and hips stacked, slowly lift your top arm up and over, rotating through your mid-back until it reaches the other side (or as far as comfortable).
+Follow your hand with your eyes. Hold end position 5s. 60 seconds per side.`,
+
+'wall-slides': `Stand with your back flat against a wall, feet 6\u2033 away. Press head, upper back, and arms against the wall.
+\u2022 Start with arms in a 'W' position (elbows at 90\u00b0)
+\u2022 Slowly slide arms up the wall into a 'Y' position
+\u2022 Keep everything touching the wall throughout
+Slowly return to W. 3 sets of 8 reps. If anything loses wall contact, reduce range.`,
+
+'shoulder-dislocates': `Hold a resistance band or broomstick with a very wide grip. Keeping arms completely straight:
+\u2022 Slowly raise it up overhead
+\u2022 Continue behind your back as far as comfortable
+\u2022 Reverse back to the front
+Use a wider grip if too difficult; narrower grip increases difficulty. 2 sets of 12 reps, slowly.`,
+
+'wrist-flexor-stretch': `Extend your right arm straight in front, palm facing up. With your left hand, gently pull your right fingers down and toward your body.
+Keep your right arm straight. You should feel a stretch along the inside of your forearm.
+Hold 45s per side. Focus extra on the right arm for elbow rehab.`,
+
+'wrist-extensor-stretch': `Extend your right arm straight in front, palm facing down. With your left hand, gently press the top of your right hand downward and toward you.
+Keep your arm straight. Feel the stretch on the outside/top of your forearm.
+Hold 45s per side. Focus extra on the right arm.`,
+
+'eccentric-wrist-curls': `Sit with your right forearm resting on your thigh, wrist hanging over the edge of your knee. Hold a light dumbbell (2\u20135 lbs) palm-up.
+\u2022 Use your left hand to help curl the weight UP
+\u2022 Then slowly LOWER the weight over 3\u20135 seconds using only your right wrist
+The slow lowering (eccentric phase) is the therapeutic part for elbow tendon rehab. 3 sets of 12 reps.`,
+
+'pec-stretch': `Stand in a doorway. Place your forearm against the doorframe with elbow at shoulder height, bent at 90\u00b0.
+Step forward with the same-side foot until you feel a stretch across your chest and front of shoulder.
+Keep your core engaged and don't arch your back. Hold 60s per side.`,
+
+'neck-side-stretch': `Sit or stand tall. Tilt your right ear toward your right shoulder.
+\u2022 Place your right hand gently on the left side of your head
+\u2022 Apply light pressure \u2014 don't force it
+\u2022 Actively press your left shoulder DOWN away from your ear
+You should feel the stretch along the left side of your neck and upper trap. Hold 45s per side.`,
+
+'upper-trap-release': `Place a tennis or lacrosse ball between your upper trap (the meaty area between neck and shoulder) and a wall.
+Lean into the ball with moderate pressure. Slowly roll around to find tight or tender spots.
+When you find one, hold still and breathe into it for 20\u201330 seconds. 60 seconds per side total.`,
+
+'standing-hip-flexor': `Stand in a tall split stance, feet about 2 feet apart.
+\u2022 Tuck your pelvis under (posterior tilt)
+\u2022 Squeeze the glute of your back leg
+\u2022 For extra stretch, raise the same-side arm overhead and lean slightly away
+You should feel a stretch in the front of your back hip. Hold 30s per side.`,
+
+'seated-figure-4': `Sit tall in a chair with feet flat on the floor. Cross your right ankle over your left knee, creating a figure-4 shape.
+Keeping your back straight, gently lean forward from your hips until you feel a stretch deep in your right glute and hip.
+Don't round your back \u2014 hinge at the hips. Hold 30s per side.`,
+
+'seated-thoracic-rotation': `Sit tall in a chair, feet flat, hips facing forward. Cross your arms on your chest.
+Rotate your upper body to one side as far as comfortable, keeping hips and lower body completely still.
+The rotation should come from your mid-back, not lower back or neck. Hold 3\u20135s at end range, return. 30s per side.`,
+
+'chin-tucks': `Sit or stand tall, looking straight ahead. Without tilting your head up or down, draw your chin straight back \u2014 as if making a double chin.
+Imagine a string pulling the back of your head up and back.
+Hold for 5 seconds at end position. You should feel a gentle stretch at the base of your skull. Relax and repeat 10 times.`,
+
+'standing-quad-stretch': `Stand on your right leg (hold something for balance). Bend your left knee and grab your left foot or ankle behind you.
+\u2022 Pull heel toward your glute
+\u2022 Keep knees together
+\u2022 Tuck pelvis under to increase the stretch
+Be gentle with the left knee \u2014 don't force the bend. Hold 30s per side.`,
+
+'shoulder-rolls': `Stand tall with arms relaxed at your sides.
+\u2022 Roll shoulders forward, up toward ears, back, and down in smooth circles (15s)
+\u2022 Reverse direction (15s)
+\u2022 Then: 3 shrugs \u2014 lift shoulders to ears, hold 5s, release completely
+About 1 minute total.`,
+
+'band-pull-aparts': `Hold a resistance band at chest height with straight arms, hands about shoulder-width apart.
+Pull the band apart by squeezing your shoulder blades together, bringing the band toward your chest. Keep arms straight throughout.
+Slowly return with control. Focus on the squeeze between your shoulder blades. 15 reps.`,
+
+'leg-swings': `Hold onto something sturdy for balance. Swing one leg forward and backward like a pendulum, keeping your torso upright.
+\u2022 Start with small swings, gradually increase range
+\u2022 10 forward/back swings per leg
+\u2022 Then face the support and do 10 side-to-side swings per leg
+Stay controlled \u2014 don't use excessive momentum.`,
+
+'arm-circles': `Stand with arms extended straight out at shoulder height.
+\u2022 Small forward circles, gradually increasing to large circles (15s)
+\u2022 Reverse direction for another 15s
+\u2022 Then: make fist circles with wrists \u2014 5 in each direction
+Focus on smooth, full range of motion.`,
+
+'bw-squats': `Stand with feet shoulder-width apart, toes slightly turned out. Arms forward for balance.
+Squat down to parallel or below, keeping chest up and weight in your heels. Drive back up through your whole foot.
+Move smoothly and controlled \u2014 no bouncing at the bottom. 10 reps.`,
+
+'seated-forward-fold': `Sit on the floor with legs extended straight. Keeping your back as flat as possible, hinge forward at the hips and reach toward your toes.
+Don't round your upper back to reach further \u2014 keep the stretch focused on your hamstrings and lower back.
+Breathe and relax deeper into it with each exhale. Hold 45 seconds.`
+};
+
+// Video search helper
+const videoUrl = name => `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' mobility exercise tutorial')}`;
+
+// ========== BLOCKS ==========
+const blocks = {
+'morning': {
+  name:'Morning Flow', when:'After waking up', time:'~15 min', icon:'\u2600',
+  exercises:['cat-cow','thread-needle','world-greatest-stretch','hip-90-90','deep-squat','hip-cars','neck-cars','knee-cars','wrist-elbow-cars','shoulder-cars']
+},
+'deep-lower': {
+  name:'Deep Lower Body', when:'Midday or before gym', time:'~20 min', icon:'\u{1F9B5}',
+  exercises:['couch-stretch','pigeon','deep-squat-shift','90-90-lean','terminal-knee-ext','vmo-wall-sit','ankle-dorsiflexion','hamstring-stretch']
+},
+'deep-upper': {
+  name:'Deep Upper Body', when:'Midday or before gym', time:'~20 min', icon:'\u{1F4AA}',
+  exercises:['thoracic-ext-roller','open-book','wall-slides','shoulder-dislocates','wrist-flexor-stretch','wrist-extensor-stretch','eccentric-wrist-curls','pec-stretch','neck-side-stretch','upper-trap-release']
+},
+'desk-break': {
+  name:'Desk Break', when:'Midday work break', time:'~10 min', icon:'\u{1F4BB}',
+  exercises:['standing-hip-flexor','seated-figure-4','seated-thoracic-rotation','chin-tucks','wrist-flexor-stretch','wrist-extensor-stretch','pec-stretch','standing-quad-stretch','shoulder-rolls','neck-side-stretch']
+},
+'pre-workout': {
+  name:'Pre-Workout', when:'Before gym session', time:'~5 min', icon:'\u{1F525}',
+  exercises:['world-greatest-stretch','hip-cars','band-pull-aparts','leg-swings','arm-circles','bw-squats']
+},
+'post-workout': {
+  name:'Post-Workout', when:'After gym session', time:'~5 min', icon:'\u{2744}',
+  exercises:['couch-stretch','pec-stretch','seated-forward-fold','wrist-flexor-stretch']
+}
+};
+
+// ========== WEEKLY SCHEDULE ==========
+const schedule = {
+  0: ['morning','deep-upper'],
+  1: ['morning','desk-break','pre-workout','post-workout'],
+  2: ['morning','deep-lower','pre-workout','post-workout'],
+  3: ['morning','desk-break','pre-workout','post-workout'],
+  4: ['morning','deep-upper','pre-workout','post-workout'],
+  5: ['morning','desk-break','pre-workout','post-workout'],
+  6: ['morning','deep-lower','pre-workout','post-workout'],
+};
+
+const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const dayShort = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+// ========== STATE ==========
+let selectedDate = new Date();
+let expandedCues = new Set();
+let collapsedBlocks = new Set();
+
+function dateKey(d) {
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function isToday(d) {
+  const t = new Date();
+  return d.getFullYear()===t.getFullYear() && d.getMonth()===t.getMonth() && d.getDate()===t.getDate();
+}
+
+function getState(d) {
+  const key = 'mob-'+dateKey(d||selectedDate);
+  try { return JSON.parse(localStorage.getItem(key)) || {}; } catch(e) { return {}; }
+}
+
+function setState(data, d) {
+  const key = 'mob-'+dateKey(d||selectedDate);
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+function toggleExercise(blockId, exId) {
+  const st = getState();
+  const k = blockId+'.'+exId;
+  if (st[k]) delete st[k]; else st[k] = true;
+  setState(st);
+  render();
+}
+
+function getWeekDates() {
+  const today = new Date();
+  const dow = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((dow + 6) % 7));
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    dates.push(d);
+  }
+  return dates;
+}
+
+function getDayProgress(d) {
+  const st = getState(d);
+  const dow = d.getDay();
+  const dayBlocks = schedule[dow];
+  let total = 0, done = 0;
+  dayBlocks.forEach(bid => {
+    const bl = blocks[bid];
+    bl.exercises.forEach(eid => {
+      total++;
+      if (st[bid+'.'+eid]) done++;
+    });
+  });
+  return { total, done };
+}
+
+function getStreak() {
+  let streak = 0;
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  while (true) {
+    const p = getDayProgress(d);
+    if (p.total > 0 && p.done >= p.total * 0.7) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    } else {
+      break;
+    }
+    if (streak > 365) break;
+  }
+  const todayP = getDayProgress(new Date());
+  if (todayP.total > 0 && todayP.done >= todayP.total * 0.7) streak++;
+  return streak;
+}
+
+// ========== RENDERING ==========
+function render() {
+  const dow = selectedDate.getDay();
+  const dayBlocks = schedule[dow];
+  const st = getState();
+  const today = isToday(selectedDate);
+
+  let totalEx = 0, doneEx = 0;
+  dayBlocks.forEach(bid => {
+    blocks[bid].exercises.forEach(eid => {
+      totalEx++;
+      if (st[bid+'.'+eid]) doneEx++;
+    });
+  });
+  const pct = totalEx > 0 ? Math.round(doneEx/totalEx*100) : 0;
+  const allDone = totalEx > 0 && doneEx === totalEx;
+  const streak = getStreak();
+
+  let totalTime = 0;
+  dayBlocks.forEach(bid => {
+    blocks[bid].exercises.forEach(eid => { totalTime += exercises[eid].time; });
+  });
+  const mins = Math.round(totalTime/60);
+
+  const weekDates = getWeekDates();
+
+  let html = '';
+
+  html += `<div class="header">
+    <div class="date-label">${selectedDate.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
+    <div class="nav">
+      <button class="nav-btn" onclick="navDay(-1)">\u2039</button>
+      <span class="day-name">${dayNames[dow]}</span>
+      <button class="nav-btn" onclick="navDay(1)">\u203A</button>
+    </div>
+    <button class="today-btn ${today?'hidden':''}" onclick="goToday()">Today</button>
+    <div class="day-summary">${dayBlocks.length} blocks \u00B7 ~${mins} min total</div>
+  </div>`;
+
+  html += `<div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div class="progress-text">${doneEx} / ${totalEx} exercises${pct===100 ? ' \u2014 Complete!' : ''}</div>
+  </div>`;
+
+  html += '<div class="week">';
+  weekDates.forEach(wd => {
+    const wdow = wd.getDay();
+    const p = getDayProgress(wd);
+    const isSel = dateKey(wd) === dateKey(selectedDate);
+    const isT = isToday(wd);
+    let dotClass = 'wd-dot';
+    if (p.done > 0 && p.done >= p.total) dotClass += ' complete';
+    else if (p.done > 0) dotClass += ' partial';
+    if (isT) dotClass += ' today-ring';
+    html += `<div class="wd ${isSel?'active':''}" onclick="goDate('${dateKey(wd)}')">
+      <span class="wd-label">${dayShort[wdow]}</span>
+      <span class="${dotClass}"></span>
+    </div>`;
+  });
+  html += '</div>';
+
+  if (streak > 0) {
+    html += `<div class="streak">${streak} day streak</div>`;
+  }
+
+  if (allDone && today) {
+    html += `<div class="done-msg"><h2>All done for today</h2><p>Great work! Rest up and recover.</p></div>`;
+  }
+
+  dayBlocks.forEach(bid => {
+    const bl = blocks[bid];
+    const exList = bl.exercises;
+    let bDone = 0;
+    exList.forEach(eid => { if (st[bid+'.'+eid]) bDone++; });
+    const bPct = Math.round(bDone/exList.length*100);
+    const bComplete = bDone === exList.length;
+    const isCollapsed = collapsedBlocks.has(bid);
+
+    html += `<div class="block">
+      <div class="block-hdr" onclick="toggleBlock('${bid}')">
+        <div class="block-left">
+          <span class="block-icon">${bl.icon}</span>
+          <div>
+            <div class="block-title">${bl.name}</div>
+            <div class="block-when">${bl.when}</div>
+          </div>
+        </div>
+        <div class="block-meta">
+          <span class="block-time">${bl.time}</span>
+          <span class="block-count ${bComplete?'complete':''}">${bDone}/${exList.length}</span>
+          <span class="block-chevron ${isCollapsed?'':'open'}">\u25BE</span>
+        </div>
+      </div>
+      <div class="block-prog"><div class="block-prog-fill" style="width:${bPct}%"></div></div>
+      <div class="block-body ${isCollapsed?'collapsed':''}">`;
+
+    exList.forEach(eid => {
+      const ex = exercises[eid];
+      const isDone = !!st[bid+'.'+eid];
+      const cueOpen = expandedCues.has(bid+'.'+eid);
+      let badges = '';
+      if (ex.injury === 'knee') badges = '<span class="badge badge-knee">L Knee</span>';
+      if (ex.injury === 'elbow') badges = '<span class="badge badge-elbow">R Elbow</span>';
+
+      html += `<div class="ex ${isDone?'done':''}" onclick="handleExClick(event,'${bid}','${eid}')">
+        <div class="ex-check">
+          <svg class="checkmark" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="ex-diagram">${ex.svg}</div>
+        <div class="ex-info">
+          <div class="ex-name">${ex.name}</div>
+          <div class="ex-detail">${ex.dur}${badges ? ' ' : ''}${badges}</div>
+        </div>
+        <div class="ex-dur">${ex.target}</div>
+      </div>
+      <div class="ex-cue ${cueOpen?'show':''}" data-cue="${bid}.${eid}">
+        <p class="ex-desc">${desc[eid] || ex.cue}</p>
+        <a href="${videoUrl(ex.name)}" target="_blank" rel="noopener" class="ex-link">
+          <svg viewBox="0 0 24 24"><path d="M10 16.5l6-4.5-6-4.5v9zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+          Find video
+        </a>
+      </div>`;
+    });
+
+    html += '</div></div>';
+  });
+
+  document.getElementById('app').innerHTML = html;
+}
+
+// ========== EVENT HANDLERS ==========
+function handleExClick(e, blockId, exId) {
+  // Checkbox = toggle done. Everything else = toggle description.
+  if (e.target.closest('.ex-check')) {
+    toggleExercise(blockId, exId);
+  } else {
+    const key = blockId+'.'+exId;
+    if (expandedCues.has(key)) expandedCues.delete(key); else expandedCues.add(key);
+    render();
+  }
+}
+
+function toggleBlock(bid) {
+  if (collapsedBlocks.has(bid)) collapsedBlocks.delete(bid); else collapsedBlocks.add(bid);
+  render();
+}
+
+function navDay(delta) {
+  selectedDate = new Date(selectedDate);
+  selectedDate.setDate(selectedDate.getDate() + delta);
+  expandedCues.clear();
+  collapsedBlocks.clear();
+  render();
+}
+
+function goToday() {
+  selectedDate = new Date();
+  expandedCues.clear();
+  collapsedBlocks.clear();
+  render();
+}
+
+function goDate(key) {
+  const [y,m,d] = key.split('-').map(Number);
+  selectedDate = new Date(y, m-1, d);
+  expandedCues.clear();
+  collapsedBlocks.clear();
+  render();
+}
+
+// ========== INIT ==========
+render();
+
+setTimeout(() => {
+  const st = getState();
+  const dow = selectedDate.getDay();
+  schedule[dow].forEach(bid => {
+    const bl = blocks[bid];
+    let allDone = true;
+    bl.exercises.forEach(eid => { if (!st[bid+'.'+eid]) allDone = false; });
+    if (allDone) collapsedBlocks.add(bid);
+  });
+  render();
+}, 50);
+</script>
+</body>
+</html>
