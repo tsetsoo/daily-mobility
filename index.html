@@ -188,7 +188,7 @@ loginForm.addEventListener('submit', async (e) => {
     if (authMode === 'signup') {
       await authAccount.create(ID.unique(), email, password, name);
     }
-    await authAccount.createEmailPasswordSession({ email, password });
+    await authAccount.createEmailPasswordSession(email, password);
     showApp();
   } catch (err) {
     loginError.textContent = err.message;
